@@ -144,6 +144,7 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	By("starting the controller in a routine")
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)

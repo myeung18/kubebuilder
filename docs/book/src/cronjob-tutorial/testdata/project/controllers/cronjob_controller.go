@@ -101,12 +101,15 @@ func (r *CronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 		Many client methods also take variadic options at the end.
 	*/
+
+	log.Info("_------------------")
 	var cronJob batchv1.CronJob
 	if err := r.Get(ctx, req.NamespacedName, &cronJob); err != nil {
 		log.Error(err, "unable to fetch CronJob")
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
+		fmt.Println("not found yet, return")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -120,8 +123,11 @@ func (r *CronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	var childJobs kbatch.JobList
 	if err := r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name}); err != nil {
 		log.Error(err, "unable to list child Jobs")
+
+		fmt.Println("unable to list child Jobs")
 		return ctrl.Result{}, err
 	}
+	log.Info("childjob ", "", len(childJobs.Items))
 
 	/*
 
@@ -188,6 +194,7 @@ func (r *CronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	// +kubebuilder:docs-gen:collapse=getScheduledTimeForJob
 
+	log.Info("for loop to check each of the jobs.")
 	for i, job := range childJobs.Items {
 		_, finishedType := isJobFinished(&job)
 		switch finishedType {
@@ -229,6 +236,7 @@ func (r *CronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		cronJob.Status.Active = append(cronJob.Status.Active, *jobRef)
 	}
+	log.Info("after active job processing...")
 
 	/*
 		Here, we'll log how many jobs we observed at a slightly higher logging level,
@@ -507,6 +515,7 @@ func (r *CronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	log.V(1).Info("created Job for CronJob run", "job", job)
 
+	fmt.Println("Reach the end of the reconciler.")
 	/*
 		### 7: Requeue when we either see a running job or it's time for the next scheduled run
 
@@ -543,6 +552,9 @@ func (r *CronJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.Clock == nil {
 		r.Clock = realClock{}
 	}
+
+	log := log.FromContext(context.Background())
+	log.Info("setup with manager is called.")
 
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kbatch.Job{}, jobOwnerKey, func(rawObj client.Object) []string {
 		// grab the job object, extract the owner...

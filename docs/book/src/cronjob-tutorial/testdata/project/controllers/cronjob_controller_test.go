@@ -26,6 +26,7 @@ package controllers
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/types"
 	"reflect"
 	"time"
 
@@ -35,8 +36,6 @@ import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	cronjobv1 "tutorial.kubebuilder.io/project/api/v1"
 )
 
@@ -121,7 +120,7 @@ var _ = Describe("CronJob controller", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-			// Let's make sure our Schedule string value was properly converted/handled.
+			By("Let's make sure our Schedule string value was properly converted/handled.")
 			Expect(createdCronjob.Spec.Schedule).Should(Equal("1 * * * *"))
 			/*
 				Now that we've created a CronJob in our test cluster, the next step is to write a test that actually tests our CronJob controller’s behavior.
@@ -139,14 +138,14 @@ var _ = Describe("CronJob controller", func() {
 				}
 				return len(createdCronjob.Status.Active), nil
 			}, duration, interval).Should(Equal(0))
-			/*
-				Next, we actually create a stubbed Job that will belong to our CronJob, as well as its downstream template specs.
-				We set the Job's status's "Active" count to 2 to simulate the Job running two pods, which means the Job is actively running.
-
-				We then take the stubbed Job and set its owner reference to point to our test CronJob.
-				This ensures that the test Job belongs to, and is tracked by, our test CronJob.
-				Once that’s done, we create our new Job instance.
-			*/
+			///*
+			//	Next, we actually create a stubbed Job that will belong to our CronJob, as well as its downstream template specs.
+			//	We set the Job's status's "Active" count to 2 to simulate the Job running two pods, which means the Job is actively running.
+			//
+			//	We then take the stubbed Job and set its owner reference to point to our test CronJob.
+			//	This ensures that the test Job belongs to, and is tracked by, our test CronJob.
+			//	Once that’s done, we create our new Job instance.
+			//*/
 			By("By creating a new Job")
 			testJob := &batchv1.Job{
 				ObjectMeta: metav1.ObjectMeta{
@@ -175,10 +174,12 @@ var _ = Describe("CronJob controller", func() {
 			// Note that your CronJob’s GroupVersionKind is required to set up this owner reference.
 			kind := reflect.TypeOf(cronjobv1.CronJob{}).Name()
 			gvk := cronjobv1.GroupVersion.WithKind(kind)
+			By("Gvk:" + gvk.String())
 
 			controllerRef := metav1.NewControllerRef(createdCronjob, gvk)
 			testJob.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
 			Expect(k8sClient.Create(ctx, testJob)).Should(Succeed())
+			By("tesetJob: " + testJob.ObjectMeta.String())
 			/*
 				Adding this Job to our test CronJob should trigger our controller’s reconciler logic.
 				After that, we can write a test that evaluates whether our controller eventually updates our CronJob’s Status field as expected!
